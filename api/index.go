@@ -1,17 +1,45 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-func main() {
-	router := gin.Default()
-	// 设置路由，只响应GET请求，并在访问根URL时返回"hello"
-	router.GET("/", func(context *gin.Context) {
-		context.String(http.StatusOK, "hello")
+var router *gin.Engine
+
+var apiUrl = "https://api.telegram.org"
+
+func init() {
+	router = gin.Default()
+	router.Any("/*path", func(context *gin.Context) {
+		uri := context.Param("path")
+		if !strings.Contains(uri, "bot") {
+			context.String(http.StatusNotFound, "404 Not found")
+			return
+		}
+		url := apiUrl + uri
+		req, err := http.NewRequestWithContext(context, context.Request.Method, url, context.Request.Body)
+		if err != nil {
+			fmt.Println(err)
+			context.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		req.Header = context.Request.Header
+		req.PostForm = context.Request.PostForm
+		req.Form = context.Request.Form
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			fmt.Println(err)
+			context.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		context.DataFromReader(resp.StatusCode, resp.ContentLength, "application/json", resp.Body, nil)
 	})
-	// 启动服务器，监听默认的8080端口
-	router.Run() // 默认监听在0.0.0.0:8080
+}
+
+func Listen(w http.ResponseWriter, r *http.Request) {
+	router.ServeHTTP(w, r)
 }
