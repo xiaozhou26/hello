@@ -1,7 +1,7 @@
 //go:build vercel
 // +build vercel
 
-package main
+package handler
 
 import (
 	"net/http"
